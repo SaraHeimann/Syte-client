@@ -32,16 +32,17 @@ const catalogsSlice = createSlice({
   initialState,
   reducers: {
     addCatalogToState(state, action) {
-      debugger;
       state.catalogs.push(action.payload);
     },
     updateCatalogInState(state, action) {
+      debugger;
       const updatedCatalog = action.payload;
       const index = state.catalogs.findIndex(
         (catalog) => catalog.id === updatedCatalog.id
       );
+      debugger;
       if (index !== -1) {
-        state.catalogs[index] = updatedCatalog;
+        state.catalogs[index] = { ...state.catalogs[index], ...updatedCatalog };
       }
     },
   },

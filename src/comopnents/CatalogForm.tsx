@@ -1,11 +1,11 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   addCatalogToState,
   Catalog,
   updateCatalogInState,
 } from "../store/catalogsSlice";
-import { addCatalog, updateCatalog } from "../services/api";
 import { useState } from "react";
+import { addCatalog, updateCatalog } from "../services/api";
 
 export const CatalogForm: React.FC<{
   setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -24,7 +24,53 @@ export const CatalogForm: React.FC<{
   );
   const [error, setError] = useState<string | null>(null);
 
+  const catalogs = useSelector((state: any) => state.catalogs.catalogs); // ייבוא קטלוגים מ-Redux
+
   const validateName = (value: string): boolean => /^[a-zA-Z]+$/.test(value);
+
+  const handleUpdateCatalog = async (
+    existingCatalog: Catalog,
+    updatedData: Partial<Catalog>
+  ) => {
+    if (updatedData.isPrimary) {
+      const existingPrimary = catalogs.find(
+        (catalog: Catalog) =>
+          catalog.vertical === existingCatalog.vertical && catalog.isPrimary
+      );
+      if (existingPrimary && existingPrimary.id !== existingCatalog.id) {
+        const previousCatalogResponse = await updateCatalog(
+          existingPrimary.id,
+          { isPrimary: false }
+        );
+        dispatch(updateCatalogInState(previousCatalogResponse));
+      }
+    }
+
+    const response = await updateCatalog(existingCatalog.id, updatedData);
+    dispatch(updateCatalogInState(response));
+    alert("Catalog updated!");
+  };
+
+  const handleAddCatalog = async (newData: Partial<Catalog>) => {
+    if (newData.isPrimary) {
+      const existingPrimary = catalogs.find(
+        (catalog: Catalog) =>
+          catalog.vertical === newData.vertical && catalog.isPrimary
+      );
+
+      if (existingPrimary) {
+        const previousCatalogResponse = await updateCatalog(
+          existingPrimary.id,
+          { isPrimary: false }
+        );
+        dispatch(updateCatalogInState(previousCatalogResponse));
+      }
+    }
+
+    const response = await addCatalog(newData);
+    dispatch(addCatalogToState(response));
+    alert("Catalog added!");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,27 +84,18 @@ export const CatalogForm: React.FC<{
       .split(",")
       .map((locale: string) => locale.trim());
 
+    const catalogData = {
+      name,
+      vertical,
+      locales: localesArray,
+      isPrimary,
+    };
+
     try {
       if (existingCatalog) {
-        const updatedCatalog = {
-          name,
-          vertical,
-          locales: localesArray,
-          isPrimary,
-        };
-        await updateCatalog(existingCatalog.id, updatedCatalog);
-        dispatch(updateCatalogInState(updatedCatalog));
-        alert("Catalog updated!");
+        await handleUpdateCatalog(existingCatalog, catalogData);
       } else {
-        const newCatalog = {
-          name,
-          vertical,
-          locales: localesArray,
-          isPrimary,
-        };
-        const response = await addCatalog(newCatalog);
-        dispatch(addCatalogToState(response));
-        alert("Catalog added!");
+        await handleAddCatalog(catalogData);
       }
       setIsOpen(false);
     } catch (err) {
@@ -84,8 +121,13 @@ export const CatalogForm: React.FC<{
           }
         }}
         required
+        disabled={!!existingCatalog} // disable אם מדובר בעדכון
       />
-      <select value={vertical} onChange={(e) => setVertical(e.target.value)}>
+      <select
+        value={vertical}
+        onChange={(e) => setVertical(e.target.value)}
+        disabled={!!existingCatalog} // disable אם מדובר בעדכון
+      >
         <option value="fashion">Fashion</option>
         <option value="home">Home</option>
         <option value="general">General</option>
@@ -110,4 +152,3 @@ export const CatalogForm: React.FC<{
     </form>
   );
 };
-
